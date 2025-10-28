@@ -51,6 +51,17 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
+
 ROOT_URLCONF = 'bot_constructor.urls'
 
 TEMPLATES = [
@@ -122,3 +133,16 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'auth.User'
+
+
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+env_path = Path('.') / '.env'
+if env_path.exists():
+    load_dotenv()
+else:
+    print("Ошибка: файл .env не найден. Создайте файл этот файл и запишите в него DEEPSEEK_API_KEY=***, где *** - ваш ключ.")
