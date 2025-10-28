@@ -7,6 +7,9 @@ from .models import Bot, Scenario, Step
 from .chatbot_service import chat_bot
 from .scenario_service import ScenarioEngine, ScenarioManager
 
+from django.db import transaction
+from django.db.models import Max
+
 class BotViewSet(viewsets.ModelViewSet):
     serializer_class = BotSerializer
 
@@ -15,7 +18,7 @@ class BotViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
-    @action(detail=True, methods=['get','post'], serializer_class=ChatSerializer)
+    @action(detail=True, methods=['post'], serializer_class=ChatSerializer)
     def chat(self, request, pk=None):
         bot = self.get_object()
 
@@ -24,54 +27,63 @@ class BotViewSet(viewsets.ModelViewSet):
         user_message = serializer.validated_data['message']
 
         if not user_message:
-            return Response({'error': 'no user message found'}, status=status.HTTP_400_BAD_REQUEST)
-        active_scenario = bot.scenario_set.first()        
-        if active_scenario and active_scenario.scenario_data:
-            scenario_engine = ScenarioEngine(active_scenario.scenario_data)
-            result = scenario_engine.process_user_input(user_message)
-            bot_response = result['response']
-        else:
-            bot_response = chat_bot.generate_with_context(user_message)
+            return Response({'error': 'Сообщение пустое'}, status=status.HTTP_400_BAD_REQUEST)
         
-        try:
-            scenario = bot.scenario_set.first()
-            if not scenario:
-                scenario = Scenario.objects.create(
-                    name=f"Default Scenario for {bot.name}",
-                    bot=bot
-                )
-            last_step = scenario.step_set.order_by('-order').first()
-            if last_step:
-                next_order = last_step.order + 1
-            else:
-                next_order = 1
-            user_step = Step.objects.create(
-                order=next_order,
-                content=user_message,
-                scenario=scenario,
-                step_type='user_input',
-            )
-            bot_step = Step.objects.create(
-                order=next_order + 1,
-                content=bot_response,
-                scenario=scenario,
-                step_type='bot_response',
-            )
-        except Exception as e:
-            print(f"Ошибка при сохранении шагов: {e}")
-        response_data = {
-            'bot_response': bot_response,
-        }
-        if active_scenario and active_scenario.scenario_data:
-            response_data.update({
-                'current_state': result.get('current_state'),
-                'is_finished': result.get('is_finished', False)
-            })            
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        active_scenario = self._get_or_create_active_scenario(bot)
+        conversation_context = self._get_conversation_context(active_scenario)
+        bot_response_data = self._process_message(
+            bot, active_scenario, user_message, conversation_context
+        )
+        self._save_conversation_steps(active_scenario, user_message, bot_response_data['response'])
+        return Response(bot_response_data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'])
-    def reset_scenario(self, request, pk=None):
-        return Response({'status': 'scenario reset'})    
+    def _get_or_create_active_scenario(self, bot):
+        active_scenario = bot.scenarios.filter(is_active=True).first()
+        if not active_scenario:
+            active_scenario = Scenario.objects.create(
+                name=f"Активный сценарий для {bot.name}",
+                bot=bot,
+                is_active=True,
+                scenario_data=ScenarioManager.get_default_scenario()
+            )
+        return active_scenario
+
+    def _get_conversation_context(self, scenario, limit=3):
+        steps = scenario.steps.order_by('-order')[:limit*2]
+        context_lines = []
+        for step in reversed(steps):
+            role = "Пользователь" if step.step_type == 'user_input' else "Бот"
+            context_lines.append(f"{role}: {step.content}")
+        return "\n".join(context_lines)
+
+    def _process_message(self, bot, scenario, user_message, context):
+        if scenario.scenario_data:
+            scenario_engine = ScenarioEngine(scenario.scenario_data)
+            return scenario_engine.process_user_input(user_message, context)
+        else:
+            bot_response = chat_bot.generate_response(user_message)
+            return {
+                'response': bot_response,
+                'current_state': None,
+                'is_finished': False
+            }
+
+    @transaction.atomic
+    def _save_conversation_steps(self, scenario, user_message, bot_response):
+        max_order = scenario.steps.aggregate(Max('order'))['order__max'] or 0
+        
+        Step.objects.create(
+            order=max_order + 1,
+            content=user_message,
+            scenario=scenario,
+            step_type='user_input',
+        )
+        Step.objects.create(
+            order=max_order + 2,
+            content=bot_response,
+            scenario=scenario,
+            step_type='bot_response',
+        )
 
 class ScenarioViewSet(viewsets.ModelViewSet):
     serializer_class = ScenarioSerializer

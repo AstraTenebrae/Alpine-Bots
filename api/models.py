@@ -19,6 +19,7 @@ class Scenario(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     bot = models.ForeignKey(Bot, on_delete=models.CASCADE)
+    is_active = models.BooleanField(default=False)
 
     scenario_data = models.JSONField(default=dict, blank=True)
 

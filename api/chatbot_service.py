@@ -23,8 +23,11 @@ class PseudoBot:
     
 class DeepSeekBot:
     def __init__(self):
+        key=os.getenv('DEEPSEEK_API_KEY', '')
+        if not key:
+            raise ValueError("DEEPSEEK_API_KEY не найден")
         self.client = OpenAI(
-            api_key=os.getenv('DEEPSEEK_API_KEY', ''),
+            api_key=key,
             base_url="https://api.deepseek.com"
         )
 

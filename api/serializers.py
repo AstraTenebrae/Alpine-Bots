@@ -27,7 +27,9 @@ class BotSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ChatSerializer(serializers.Serializer):
-    message = serializers.CharField(required=True, help_text="Сообщение для бота")
-
-class ScenarioValidationSerializer(serializers.Serializer):
-    scenario_data = serializers.JSONField(help_text="Данные сценария в JSON формате")
+    message = serializers.CharField(
+        required=True, 
+        min_length=1,
+        max_length=1000,
+        help_text="Сообщение для бота"
+    )

@@ -1,4 +1,3 @@
-import json
 from typing import Dict, Any, Optional
 from .chatbot_service import chat_bot
 
@@ -6,83 +5,78 @@ class ScenarioEngine:
     def __init__(self, scenario_data: Dict[str, Any]):
         self.scenario_data = scenario_data
         self.current_state = scenario_data.get('initial_state', 'start')
-        self.conversation_history = []
     
-    def get_current_state(self) -> Optional[Dict[str, Any]]:
+    def get_current_state_config(self) -> Optional[Dict[str, Any]]:
         return self.scenario_data.get('states', {}).get(self.current_state)
     
-    def process_user_input(self, user_input: str) -> Dict[str, Any]:
-        current_state = self.get_current_state()
-        if not current_state:
-            return {
-                'response': "Извините, произошла ошибка в сценарии.",
-                'current_state': self.current_state,
-                'is_finished': True
-            }
-        
-        self.conversation_history.append(f"Пользователь: {user_input}")
-        
-        prompt_template = current_state.get('prompt', '')
-        
-        context = "\n".join(self.conversation_history[-6:])
-        full_prompt = f"{prompt_template}\n\nКонтекст диалога:\n{context}\n\nТекущий ввод пользователя: {user_input}"
-        
-        try:
-            bot_response = chat_bot.generate_response(full_prompt)            
-            self.conversation_history.append(f"Бот: {bot_response}")
-            next_state = self._determine_next_state(user_input, current_state)
-            self.current_state = next_state
-            is_finished = self.current_state == 'end' or not self.scenario_data.get('states', {}).get(self.current_state)
-            
-            return {
-                'response': bot_response,
-                'current_state': self.current_state,
-                'next_state': next_state,
-                'is_finished': is_finished
-            }
-            
-        except Exception as e:
-            fallback_state = current_state.get('fallback_state', 'error')
-            self.current_state = fallback_state
-            
-            return {
-                'response': "Извините, произошла ошибка при обработке вашего запроса.",
-                'current_state': self.current_state,
-                'is_finished': False,
-                'error': str(e)
-            }
+    def _create_success_response(self, response: str, next_state: str) -> Dict[str, Any]:
+        return {
+            'response': response,
+            'current_state': self.current_state,
+            'next_state': next_state,
+            'is_finished': next_state == 'end',
+            'error': None
+        }
+    
+    def _create_error_response(self, error_msg: str) -> Dict[str, Any]:
+        return {
+            'response': "Извините, произошла ошибка.",
+            'current_state': self.current_state,
+            'next_state': self.current_state,
+            'is_finished': False,
+            'error': error_msg
+        }
+    
+    def _build_prompt(self, prompt_template: str, user_input: str, context: str) -> str:
+        if context:
+            return f"{prompt_template}\n\nКонтекст диалога:\n{context}\n\nТекущий ввод: {user_input}"
+        return f"{prompt_template}\n\nВвод пользователя: {user_input}"
     
     def _determine_next_state(self, user_input: str, current_state: Dict[str, Any]) -> str:
         user_input_lower = user_input.lower()
         transitions = current_state.get('transitions', {})
+        
         for keyword, next_state in transitions.items():
             if keyword.lower() in user_input_lower:
                 return next_state
-        return current_state.get('default_next_state', self.current_state)
+        
+        return current_state.get('default_next_state', 'end')
     
-    def reset(self):
-        self.current_state = self.scenario_data.get('initial_state', 'start')
-        self.conversation_history = []
+    def process_user_input(self, user_input: str, conversation_context: str = "") -> Dict[str, Any]:
+        current_state_config = self.get_current_state_config()
+        if not current_state_config:
+            return self._create_error_response("Состояние сценария не найдено")
 
+        try:
+            prompt_template = current_state_config.get('prompt', '')
+            full_prompt = self._build_prompt(prompt_template, user_input, conversation_context)
+            
+            bot_response = chat_bot.generate_response(full_prompt)
+            next_state = self._determine_next_state(user_input, current_state_config)
+            self.current_state = next_state
+            
+            return self._create_success_response(bot_response, next_state)
+            
+        except Exception as e:
+            print(f"Ошибка обработки сценария: {e}")
+            return self._create_error_response(str(e))
+    
 
 class ScenarioManager:
     @staticmethod
     def validate_scenario_format(scenario_data: Dict[str, Any]) -> bool:
-        try:
-            if 'initial_state' not in scenario_data:
-                return False
-            
-            states = scenario_data.get('states', {})
-            if not states:
-                return False
-            if scenario_data['initial_state'] not in states:
-                return False
-            for state_name, state_data in states.items():
-                if 'prompt' not in state_data:
-                    return False
-            return True
-        except Exception:
+        required_keys = {'initial_state', 'states'}
+        if not all(key in scenario_data for key in required_keys):
             return False
+        
+        states = scenario_data['states']
+        if not states or scenario_data['initial_state'] not in states:
+            return False
+        
+        for state_name, state_config in states.items():
+            if not isinstance(state_config, dict):
+                return False
+        return True
     
     @staticmethod
     def get_default_scenario() -> Dict[str, Any]:
