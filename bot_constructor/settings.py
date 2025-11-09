@@ -154,3 +154,21 @@ if env_path.exists():
     load_dotenv()
 else:
     print("Ошибка: файл .env не найден. Создайте файл этот файл и запишите в него DEEPSEEK_API_KEY=***, где *** - ваш ключ.")
+
+if 'RAILWAY_STATIC_URL' in os.environ:
+    DEBUG = False
+    ALLOWED_HOSTS = [os.getenv('RAILWAY_STATIC_DOMAIN', '*.up.railway.app')]
+    
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('PGDATABASE'),
+            'USER': os.getenv('PGUSER'),
+            'PASSWORD': os.getenv('PGPASSWORD'),
+            'HOST': os.getenv('PGHOST'),
+            'PORT': os.getenv('PGPORT', '5432'),
+        }
+    }
+    
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+    STATIC_URL = 'static/'
