@@ -1,24 +1,22 @@
-FROM python:3.12
+FROM python:3.11-slim AS build
 
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+COPY --from=build /usr/local /usr/local
 
 COPY . .
 
-RUN echo "#!/bin/bash\n\
-python manage.py collectstatic --noinput --clear\n\
-python manage.py migrate\n\
-gunicorn --bind 0.0.0.0:\$PORT bot_constructor.wsgi:application" > entrypoint.sh
+RUN python manage.py collectstatic --noinput
 
-RUN chmod +x entrypoint.sh
+ENV DJANGO_SETTINGS_MODULE=bot_constructor.settings \
+    PYTHONUNBUFFERED=1
 
-RUN mkdir -p /staticfiles
+EXPOSE 8000
 
-CMD ["./entrypoint.sh"]
+CMD ["gunicorn", "bot_constructor.wsgi:application", "--bind", "0.0.0.0:8000"]
