@@ -13,10 +13,12 @@ RUN pip install -r requirements.txt
 COPY . .
 
 RUN echo "#!/bin/bash\n\
-python manage.py collectstatic --noinput\n\
+python manage.py collectstatic --noinput --clear\n\
 python manage.py migrate\n\
 gunicorn --bind 0.0.0.0:\$PORT bot_constructor.wsgi:application" > entrypoint.sh
 
 RUN chmod +x entrypoint.sh
+
+RUN mkdir -p /staticfiles
 
 CMD ["./entrypoint.sh"]
