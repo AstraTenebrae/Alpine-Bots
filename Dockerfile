@@ -13,6 +13,7 @@ COPY --from=build /usr/local /usr/local
 COPY . .
 
 RUN python manage.py collectstatic --noinput
+RUN python manage.py migrate --noinput
 
 ENV DJANGO_SETTINGS_MODULE=bot_constructor.settings \
     PYTHONUNBUFFERED=1
