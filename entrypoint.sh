@@ -7,5 +7,7 @@ python manage.py migrate --noinput
 echo "📦 Collecting static files..."
 python manage.py collectstatic --noinput
 
-echo "✅ Starting Gunicorn..."
-exec gunicorn bot_constructor.wsgi:application --bind 0.0.0.0:${PORT:-8000}
+PORT=${PORT:-8000}
+echo "🌐 Starting Gunicorn on port $PORT..."
+exec gunicorn bot_constructor.wsgi:application --bind 0.0.0.0:$PORT
+
