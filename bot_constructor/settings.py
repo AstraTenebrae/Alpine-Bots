@@ -145,7 +145,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 
 # Default primary key field type
@@ -159,7 +159,7 @@ env_path = Path('.') / '.env'
 if env_path.exists():
     load_dotenv()
 else:
-    print("Ошибка: файл .env не найден. Создайте файл этот файл и запишите в него DEEPSEEK_API_KEY=***, где *** - ваш ключ.")
+    print("Файл .env не найден.")
 
 if 'RAILWAY_STATIC_URL' in os.environ:
     DEBUG = False
