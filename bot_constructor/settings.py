@@ -30,9 +30,12 @@ SECRET_KEY = 'django-insecure-xvvpw$-(@uw79sw89i@($=9^iies&pa=(+!!xb6z#oxisz30n*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-if 'RAILWAY_STATIC_URL' in os.environ:
-    ALLOWED_HOSTS = [os.getenv('RAILWAY_STATIC_DOMAIN', '*.up.railway.app')]
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1', 
+    '.up.railway.app',
+    'alpine-bots.up.railway.app'
+]
 
 # Application definition
 
