@@ -31,7 +31,8 @@ SECRET_KEY = 'django-insecure-xvvpw$-(@uw79sw89i@($=9^iies&pa=(+!!xb6z#oxisz30n*
 DEBUG = True
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-
+if 'RAILWAY_STATIC_URL' in os.environ:
+    ALLOWED_HOSTS = [os.getenv('RAILWAY_STATIC_DOMAIN', '*.up.railway.app')]
 
 # Application definition
 
@@ -90,17 +91,17 @@ WSGI_APPLICATION = 'bot_constructor.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'bot_constructor'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'NAME': os.getenv('PGDATABASE', os.getenv('DB_NAME', 'bot_constructor')),
+        'USER': os.getenv('PGUSER', os.getenv('DB_USER', 'postgres')),
+        'PASSWORD': os.getenv('PGPASSWORD', os.getenv('DB_PASSWORD', '')),
+        'HOST': os.getenv('PGHOST', os.getenv('DB_HOST', 'localhost')),
+        'PORT': os.getenv('PGPORT', os.getenv('DB_PORT', '5432')),
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -160,21 +161,3 @@ if env_path.exists():
     load_dotenv()
 else:
     print("Файл .env не найден.")
-
-if 'RAILWAY_STATIC_URL' in os.environ:
-    DEBUG = False
-    ALLOWED_HOSTS = [os.getenv('RAILWAY_STATIC_DOMAIN', '*.up.railway.app')]
-    
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('PGDATABASE'),
-            'USER': os.getenv('PGUSER'),
-            'PASSWORD': os.getenv('PGPASSWORD'),
-            'HOST': os.getenv('PGHOST'),
-            'PORT': os.getenv('PGPORT', '5432'),
-        }
-    }
-    STATIC_URL = '/static/'
-    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
